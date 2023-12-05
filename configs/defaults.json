@@ -1,0 +1,28 @@
+{
+	"indexFileNames": [
+		"index.html",
+		"index.htm"
+	],
+	"mimeTypes": {
+		".csv": "text/csv",
+		".htm": "text/html",
+		".html": "text/html",
+		".jar": "application/java-archive",
+		".js": "text/javascript",
+		".json": "application/json",
+		".mjs": "text/javascript",
+		".mp3": "audio/mpeg",
+		".ogg": "audio/ogg",
+		".ogv": "video/ogg",
+		".opus": "audio/opus",
+		".pdf": "application/pdf",
+		".png": "image/png",
+		".svg": "image/svg+xml",
+		".ttf": "font/ttf",
+		".txt": "text/plain",
+		".wav": "audio/wav",
+		".webp": "image/webp",
+		".xml": "application/xml",
+		".zip": "application/zip"
+	}
+}
