@@ -1,21 +1,105 @@
-import * as fs from 'node:fs/promises';
-import http from 'node:http';
-import path from 'node:path';
+import * as FS from 'node:fs/promises';
+import HTTP from 'node:http';
+import Path from 'node:path';
 
 export
 class Server
 {
-    #mimeTypes = {};
+	#endpoints = {};
+	#indexFileNames = [
+		'index.html',
+		'index.htm'
+	];
+	#mimeTypes = {
+		".bmp": "image/bmp",
+		".css": "text/css",
+		".csv": "text/csv",
+		".gif": "image/gif",
+		".htm": "text/html",
+		".html": "text/html",
+		".ico": "image/vnd.microsoft.icon",
+		".jar": "application/java-archive",
+		".jpeg": "image/jpeg",
+		".jpg": "image/jpeg",
+		".js": "text/javascript",
+		".json": "application/json",
+		".mjs": "text/javascript",
+		".mp3": "audio/mpeg",
+		".ogg": "audio/ogg",
+		".ogv": "video/ogg",
+		".opus": "audio/opus",
+		".pdf": "application/pdf",
+		".png": "image/png",
+		".svg": "image/svg+xml",
+		".ttf": "font/ttf",
+		".txt": "text/plain",
+		".wav": "audio/wav",
+		".webp": "image/webp",
+		".xml": "application/xml",
+		".zip": "application/zip"
+	};
 
-    constructor()
-    {
-    }
+	constructor()
+	{
+	}
 
-    async start(port = 80, hostname = null)
-    {
-        http.createServer((req, res) => {
-            res.writeHead(418, { "Content-Type": "text/plain" });
-            res.end("Hello world from Hetap! Hetap is still under construction, so this is all you get for now.");
-        }).listen(port, hostname ?? undefined);
-    }
+	addMIMETypes(extensionMap)
+	{
+		for (const extension of Object.keys(extensionMap)) {
+			this.mimeTypes[extension] = extensionMap[extension];
+		}
+	}
+
+	mount(prefix, path)
+	{
+		this.#endpoints[prefix] = Path.resolve(path);
+	}
+
+	async start(port = 80, hostname = null)
+	{
+		const server = HTTP.createServer(async (req, res) => {
+			let prefix, localPath;
+			for (const endpoint of Object.keys(this.#endpoints)) {
+				if (req.url.startsWith(endpoint)) {
+					prefix = endpoint;
+					localPath = Path.resolve(this.#endpoints[endpoint], req.url.slice(prefix.length));
+				}
+			}
+			let filePath = null;
+			let content = null;
+			try {
+				const stats = await FS.stat(localPath);
+				if (stats.isDirectory()) {
+					for (const indexFileName of this.#indexFileNames) {
+						try {
+							content = await FS.readFile(Path.resolve(localPath, indexFileName));
+							filePath = Path.resolve(localPath, indexFileName);
+						}
+						catch {
+						}
+					}
+				}
+				else {
+					content = await FS.readFile(localPath);
+					filePath = localPath;
+				}
+			}
+			catch {}
+			if (filePath != null) {
+				const extension = Path.extname(filePath);
+				const mimeType = this.#mimeTypes[extension] ?? 'application/octet-stream';
+				console.log(`serving '${filePath}' as '${req.url}' - endpoint '${prefix}'`);
+				res.writeHead(200, { "Content-Type": mimeType });
+				res.end(content);
+			}
+			else {
+				console.log(`no file found for '${req.url}' - endpoint '${prefix}'`);
+				res.writeHead(404);
+				res.end("404 FILE NOT FOUND");
+			}
+		});
+		return new Promise((resolve, reject) => {
+			server.listen(port, hostname ?? undefined, () => resolve())
+		});
+	}
 }
