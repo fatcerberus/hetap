@@ -6,81 +6,44 @@ export
 class Server
 {
 	#endpoints = {};
-	#indexFileNames = [
-		'index.html',
-		'index.htm'
-	];
-	#mimeTypes = {
-		".bmp": "image/bmp",
-		".css": "text/css",
-		".csv": "text/csv",
-		".gif": "image/gif",
-		".htm": "text/html",
-		".html": "text/html",
-		".ico": "image/vnd.microsoft.icon",
-		".jar": "application/java-archive",
-		".jpeg": "image/jpeg",
-		".jpg": "image/jpeg",
-		".js": "text/javascript",
-		".json": "application/json",
-		".mjs": "text/javascript",
-		".mp3": "audio/mpeg",
-		".ogg": "audio/ogg",
-		".ogv": "video/ogg",
-		".opus": "audio/opus",
-		".pdf": "application/pdf",
-		".png": "image/png",
-		".svg": "image/svg+xml",
-		".ttf": "font/ttf",
-		".txt": "text/plain",
-		".wav": "audio/wav",
-		".webp": "image/webp",
-		".xml": "application/xml",
-		".zip": "application/zip"
-	};
+	#indexFileNames;
+	#mimeTypes;
 
-	constructor()
+	constructor(config)
 	{
+		this.#indexFileNames = [ ...config.indexFileNames ];
+		this.#mimeTypes = { ...config.mimeTypes };
 	}
 
-	addMIMETypes(extensionMap)
+	mount(prefix, hostPath)
 	{
-		for (const extension of Object.keys(extensionMap)) {
-			this.mimeTypes[extension] = extensionMap[extension];
-		}
-	}
-
-	mount(prefix, path)
-	{
-		this.#endpoints[prefix] = Path.resolve(path);
+		this.#endpoints[prefix] = Path.resolve(hostPath);
+		return this;
 	}
 
 	async start(port = 80, hostname = null)
 	{
 		return await new Promise((resolve, reject) => {
-			const server = HTTP.createServer(this.#serveRequest.bind(this));
-			server.listen(port, hostname ?? undefined, () => resolve())
+			HTTP.createServer(this.#serveRequest.bind(this))
+				.listen(port, hostname ?? undefined, () => resolve())
 		});
 	}
 
-	async #serveRequest(req, res)
+	async #serveRequest(request, response)
 	{
-		let prefix, localPath;
-		for (const endpoint of Object.keys(this.#endpoints)) {
-			if (req.url.startsWith(endpoint)) {
-				prefix = endpoint;
-				localPath = Path.resolve(this.#endpoints[endpoint], req.url.slice(prefix.length));
-			}
-		}
-		let filePath = null;
+		const localPath = Object.entries(this.#endpoints)
+			.filter(([ prefix, hostPath ]) => request.url.startsWith(prefix))
+			.map(([ prefix, hostPath ]) => `${hostPath}/${request.url.slice(prefix.length)}`)
+			.at(-1);
+		let filePath = Path.resolve(localPath);
 		let content = null;
 		try {
-			const stats = await FS.stat(localPath);
+			const stats = await FS.stat(filePath);
 			if (stats.isDirectory()) {
 				for (const indexFileName of this.#indexFileNames) {
 					try {
-						content = await FS.readFile(Path.resolve(localPath, indexFileName));
 						filePath = Path.resolve(localPath, indexFileName);
+						content = await FS.readFile(filePath);
 						break;
 					}
 					catch {
@@ -89,23 +52,23 @@ class Server
 				}
 			}
 			else {
-				content = await FS.readFile(localPath);
-				filePath = localPath;
+				content = await FS.readFile(filePath);
 			}
 		}
 		catch {
+			/* *munch* */
 		}
-		if (filePath != null) {
-			const extension = Path.extname(filePath);
-			const mimeType = this.#mimeTypes[extension] ?? 'application/octet-stream';
-			console.log(`200 - '${req.url}' - ${mimeType} - ${filePath}`);
-			res.writeHead(200, { "Content-Type": mimeType });
-			res.end(content);
+		if (content !== null) {
+			const fileExtension = Path.extname(filePath);
+			const mimeType = this.#mimeTypes[fileExtension] ?? 'application/octet-stream';
+			console.log(`200 - '${request.url}' - ${mimeType} - ${filePath}`);
+			response.writeHead(200, { 'Content-Type': mimeType });
+			response.end(content);
 		}
 		else {
-			console.log(`\x1B[31;1m404 - '${req.url}' - no suitable file could be found\x1B[m]`);
-			res.writeHead(404);
-			res.end("404: File not found");
+			console.log(`\x1B[31;1m404 - '${request.url}' - no suitable file could be found\x1B[m`);
+			response.writeHead(404);
+			response.end("404: File not found");
 		}
 	}
 }
