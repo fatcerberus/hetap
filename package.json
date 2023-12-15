@@ -1,6 +1,6 @@
 {
   "name": "hetap",
-  "version": "0.0.0",
+  "version": "0.1.0-dev",
   "description": "Quick and dirty Web server",
   "type": "module",
   "main": "src/main.js",
