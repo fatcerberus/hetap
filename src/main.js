@@ -1,3 +1,4 @@
+import { spawn } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import path, { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -10,7 +11,7 @@ const APP_VERSION = "0.1.0-dev";
 
 printVersion();
 
-const config = await loadConfig();
+const config = await loadConfiguration();
 const options = parseCommandLine();
 
 const hostname = "localhost";
@@ -18,37 +19,49 @@ const port = 8080;
 console.log(`starting HTTP server...`);
 console.log(`   hostname: ${hostname ?? "<any>"}`);
 console.log(`   port: ${port}`);
+console.log(`   serve: ${config.rootPath}`);
 const server = new Server(config.baseConfig)
 	.mount('/', config.rootPath);
-for (const [ mount, hostPath ] of Object.entries(options.mounts)) {
-	const prefix = config.mountPoints[mount];
-	server.mount(prefix, path.resolve(hostPath));
+for (const [ id, hostPath ] of Object.entries(options.hostPaths)) {
+	const prefix = config.endpoints[id];
+	server.mount(prefix, hostPath);
 }
 await server.start(port, hostname);
 
 console.log();
 
-async function loadConfig()
+async function loadConfiguration()
 {
-	console.log(`reading configuration files...`);
+	console.log(`loading configuration...`);
 	const userConfig = JSON.parse(await readFile('./hetap.json'));
 	const configPath = path.resolve(dirname(fileURLToPath(import.meta.url)), `../configs/${userConfig.uses}.json`);
 	const baseConfig = JSON.parse(await readFile(configPath));
 	return {
 		baseConfig,
-		rootPath: path.resolve(userConfig.root),
-		mountPoints: userConfig.mountPoints
+		rootPath: path.resolve(userConfig.serveDir),
+		endpoints: userConfig.endpoints
 	};
 }
 
 function parseCommandLine()
 {
-	// TODO: ACTUALLY parse the command line
-	return {
-		mounts: {
-			"game": "C:\\src\\spectacles\\dist"
-		}
+	console.log("parsing command line...");
+	const options = {
+		hostPaths: {}
 	};
+	for (let i = 2; i < process.argv.length; ++i) {
+		const token = process.argv[i];
+		let parsed;
+		if (parsed = token.match(/(\w+)=(.+)/)) {
+			const endpointID = parsed[1];
+			const hostPath = path.resolve(parsed[2]);
+			options.hostPaths[endpointID] = hostPath;
+		}
+	}
+	for (const [ id, hostPath ] of Object.entries(options.hostPaths)) {
+		console.log(`   endpoint '${id}' - ${hostPath}`);
+	}
+	return options;
 }
 
 function printVersion(showDeps = false)
