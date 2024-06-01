@@ -1,6 +1,6 @@
-# Hetap Web server
+# HETAP: a simple file-based Web server
 
-:construction: UNDER CONSTRUCTION :construction:
+UNDER CONSTRUCTION :construction:
 
-**Hetap** is a quick-and-dirty Web server which serves content directly from
+**HETAP** is a quick-and-dirty Web server which serves content directly from
 the local file system.

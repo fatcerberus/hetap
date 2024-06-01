@@ -1,3 +1,9 @@
+/**
+ *  HETAP: a simple file-based Web server
+ *  Copyright (c) 2023-2024, Fat Cerberus
+ *  All rights reserved.
+**/
+
 import { readFile, stat } from 'node:fs/promises';
 import http from 'node:http';
 import path from 'node:path';

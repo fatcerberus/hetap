@@ -1,11 +1,16 @@
-import { spawn } from 'node:child_process';
+/**
+ *  HETAP: a simple file-based Web server
+ *  Copyright (c) 2023-2024, Fat Cerberus
+ *  All rights reserved.
+**/
+
 import { readFile } from 'node:fs/promises';
 import path, { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { Server } from './server.js';
 
-const APP_NAME = "Hetap";
+const APP_NAME = "HETAP";
 const APP_COPYRIGHT = "2024 Fat Cerberus";
 const APP_VERSION = "0.1.0-dev";
 
@@ -33,12 +38,12 @@ console.log();
 async function loadConfiguration()
 {
 	console.log(`loading configuration...`);
-	const userConfig = JSON.parse(await readFile('./hetap.json'));
+	const userConfig = JSON.parse(await readFile('./hetap.json', 'utf8'));
 	const configPath = path.resolve(dirname(fileURLToPath(import.meta.url)), `../configs/${userConfig.uses}.json`);
-	const baseConfig = JSON.parse(await readFile(configPath));
+	const baseConfig = JSON.parse(await readFile(configPath, 'utf8'));
 	return {
 		baseConfig,
-		rootPath: path.resolve(userConfig.serveDir),
+		rootPath: path.resolve(userConfig.serveFrom),
 		endpoints: userConfig.endpoints
 	};
 }
@@ -59,7 +64,7 @@ function parseCommandLine()
 		}
 	}
 	for (const [ id, hostPath ] of Object.entries(options.hostPaths)) {
-		console.log(`   endpoint '${id}' - ${hostPath}`);
+		console.log(`   endpoint '${id}': ${hostPath}`);
 	}
 	return options;
 }
